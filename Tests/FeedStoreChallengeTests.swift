@@ -106,21 +106,13 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
     override func setUp() {
         super.setUp()
         
-        let sut = makeSUT()
-        
-        sut.deleteCachedFeed { (error) in
-            
-        }
+        clearCache()
     }
     
     override func tearDown() {
         super.tearDown()
         
-        let sut = makeSUT()
-        
-        sut.deleteCachedFeed { (error) in
-            
-        }
+        clearCache()
     }
     
 	func test_retrieve_deliversEmptyOnEmptyCache() {
@@ -200,6 +192,16 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
 	private func makeSUT() -> FeedStore {
 		return CoreDataFeedStore()
 	}
+    
+    private func clearCache(file: StaticString = #file, line: UInt = #line) {
+        let sut = makeSUT()
+        
+        sut.deleteCachedFeed { (error) in
+            if let error = error {
+                fatalError("Unresolved error \(error)")
+            }
+        }
+    }
 	
 }
 
