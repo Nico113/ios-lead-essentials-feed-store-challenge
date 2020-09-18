@@ -27,12 +27,11 @@ class CoreDataFeedStore: FeedStore {
     
     func deleteCachedFeed(completion: @escaping DeletionCompletion) {
         if let container = persistentContainer {
-            let managedContext = container.viewContext
-            
             do {
-                if let cache: Cache = try managedContext.fetch(Cache.fetchRequest()).first {
-                    managedContext.delete(cache)
-                    try managedContext.save()
+                if let cache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
+                    container.viewContext.delete(cache)
+                    try container.viewContext.save()
+                    completion(.none)
                 }
             } catch {
                 completion(error)
@@ -43,16 +42,13 @@ class CoreDataFeedStore: FeedStore {
     }
     
     func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
-        if let container = persistentContainer {
-            let managedContext = container.viewContext
-            
+        if let container = persistentContainer, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: container.viewContext) {
             do {
-                let cache = Cache(context: managedContext)
+                let cache = Cache(context: container.viewContext)
                 
-                let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: managedContext)!
                 var feedImages = [NSManagedObject]()
                 for localFeedImage in feed {
-                    let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: managedContext)
+                    let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: container.viewContext)
                     
                     feedImage.setValue(localFeedImage.id, forKey: "id")
                     feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
@@ -62,37 +58,25 @@ class CoreDataFeedStore: FeedStore {
                     feedImages.append(feedImage)
                 }
                 
-                let setOfFeedImages = NSOrderedSet(array: feedImages)
-                
                 cache.timestamp = timestamp
-                cache.addToItems(setOfFeedImages)
+                cache.addToItems(NSOrderedSet(array: feedImages))
                 
-                try managedContext.save()
+                try container.viewContext.save()
                 completion(.none)
                 
             } catch {
                 completion(error)
             }
+        } else {
+            completion(NSError())
         }
     }
     
     func retrieve(completion: @escaping RetrievalCompletion) {
         if let container = persistentContainer {
-            let managedContext = container.viewContext
-            
             do {
-                if let cache: Cache = try managedContext.fetch(Cache.fetchRequest()).first {
-                    var feedImages = [LocalFeedImage]()
-                    
-                    if let images = cache.items {
-                        for item in images {
-                            let feedImage = item as! FeedImage
-                            let localFeedImage = LocalFeedImage(id: feedImage.id, description: feedImage.imageDescription, location: feedImage.location, url: feedImage.url)
-                            feedImages.append(localFeedImage)
-                        }
-                    }
-                    
-                    completion(.found(feed: feedImages, timestamp: cache.timestamp!))
+                if let cache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
+                    completion(.found(feed: cache.local, timestamp: cache.timestamp!))
                 } else {
                     completion(.empty)
                 }
