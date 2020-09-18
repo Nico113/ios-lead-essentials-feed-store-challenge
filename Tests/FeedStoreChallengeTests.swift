@@ -4,19 +4,106 @@
 
 import XCTest
 import FeedStoreChallenge
+import CoreData
 
 class CoreDataFeedStore: FeedStore {
     
-    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+    var cache: NSManagedObject?
+    
+    lazy var persistentContainer: NSPersistentContainer? = {
+        let bundle = Bundle(for: CoreDataFeedStore.self)
         
+        if let mom = NSManagedObjectModel.mergedModel(from: [bundle]) {
+            let container = NSPersistentContainer(name: "FeedStore", managedObjectModel: mom)
+                    
+            container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+                if let error = error as NSError? {
+                    fatalError("Unresolved error \(error), \(error.userInfo)")
+                }
+            })
+            
+            return container
+        }
+        return nil
+    }()
+    
+    func deleteCachedFeed(completion: @escaping DeletionCompletion) {
+        if let container = persistentContainer {
+            let managedContext = container.viewContext
+            
+            do {
+                if let cache: Cache = try managedContext.fetch(Cache.fetchRequest()).first {
+                    managedContext.delete(cache)
+                    try managedContext.save()
+                }
+            } catch {
+                completion(error)
+            }
+        } else {
+            completion(NSError())
+        }
     }
     
     func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
-        
+        if let container = persistentContainer {
+            let managedContext = container.viewContext
+            
+            do {
+                let cache = Cache(context: managedContext)
+                
+                let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: managedContext)!
+                var feedImages = [NSManagedObject]()
+                for localFeedImage in feed {
+                    let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: managedContext)
+                    
+                    feedImage.setValue(localFeedImage.id, forKey: "id")
+                    feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
+                    feedImage.setValue(localFeedImage.location, forKey: "location")
+                    feedImage.setValue(localFeedImage.url, forKey: "url")
+                    
+                    feedImages.append(feedImage)
+                }
+                
+                let setOfFeedImages = NSOrderedSet(array: feedImages)
+                
+                cache.timestamp = timestamp
+                cache.addToItems(setOfFeedImages)
+                
+                try managedContext.save()
+                completion(.none)
+                
+            } catch {
+                completion(error)
+            }
+        }
     }
     
     func retrieve(completion: @escaping RetrievalCompletion) {
-        completion(.empty)
+        if let container = persistentContainer {
+            let managedContext = container.viewContext
+            
+            do {
+                if let cache: Cache = try managedContext.fetch(Cache.fetchRequest()).first {
+                    var feedImages = [LocalFeedImage]()
+                    
+                    if let images = cache.items {
+                        for item in images {
+                            let feedImage = item as! FeedImage
+                            let localFeedImage = LocalFeedImage(id: feedImage.id, description: feedImage.imageDescription, location: feedImage.location, url: feedImage.url)
+                            feedImages.append(localFeedImage)
+                        }
+                    }
+                    
+                    completion(.found(feed: feedImages, timestamp: cache.timestamp!))
+                } else {
+                    completion(.empty)
+                }
+            } catch {
+                completion(.failure(error))
+            }
+        } else {
+            completion(.failure(NSError()))
+        }
     }
 }
 
@@ -34,22 +121,30 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
     //
     //  ***********************
 
+    override func setUp() {
+        let sut = makeSUT()
+        
+        sut.deleteCachedFeed { (error) in
+            
+        }
+    }
+    
 	func test_retrieve_deliversEmptyOnEmptyCache() {
 		let sut = makeSUT()
-
-		assertThatRetrieveDeliversEmptyOnEmptyCache(on: sut)
+        
+        self.assertThatRetrieveDeliversEmptyOnEmptyCache(on: sut)
 	}
 
 	func test_retrieve_hasNoSideEffectsOnEmptyCache() {
 		let sut = makeSUT()
 
-		assertThatRetrieveHasNoSideEffectsOnEmptyCache(on: sut)
+        self.assertThatRetrieveHasNoSideEffectsOnEmptyCache(on: sut)
 	}
 
 	func test_retrieve_deliversFoundValuesOnNonEmptyCache() {
-//		let sut = makeSUT()
-//
-//		assertThatRetrieveDeliversFoundValuesOnNonEmptyCache(on: sut)
+		let sut = makeSUT()
+
+        self.assertThatRetrieveDeliversFoundValuesOnNonEmptyCache(on: sut)
 	}
 
 	func test_retrieve_hasNoSideEffectsOnNonEmptyCache() {
