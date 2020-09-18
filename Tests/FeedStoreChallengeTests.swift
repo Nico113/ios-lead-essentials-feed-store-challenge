@@ -33,21 +33,11 @@ class CoreDataFeedStore: FeedStore {
     }
     
     func deleteCachedFeed(completion: @escaping DeletionCompletion) {
-        if let container = persistentContainer {
-            let entities = container.managedObjectModel.entities
-            entities.compactMap({ $0.name }).forEach { entity in
-                let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: entity)
-                let deleteRequest = NSBatchDeleteRequest(fetchRequest: deleteFetch)
-                do {
-                    try container.viewContext.execute(deleteRequest)
-                    try container.viewContext.save()
-                    completion(.none)
-                } catch {
-                    completion(error)
-                }
-            }
-        } else {
-            completion(NSError())
+        do {
+            try deleteCurrentCache()
+            completion(.none)
+        } catch {
+            completion(error)
         }
     }
     
@@ -169,9 +159,9 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
 	}
 
 	func test_delete_deliversNoErrorOnEmptyCache() {
-//		let sut = makeSUT()
-//
-//		assertThatDeleteDeliversNoErrorOnEmptyCache(on: sut)
+		let sut = makeSUT()
+
+		assertThatDeleteDeliversNoErrorOnEmptyCache(on: sut)
 	}
 
 	func test_delete_hasNoSideEffectsOnEmptyCache() {
