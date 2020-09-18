@@ -8,8 +8,6 @@ import CoreData
 
 class CoreDataFeedStore: FeedStore {
     
-    var cache: NSManagedObject?
-    
     lazy var persistentContainer: NSPersistentContainer? = {
         let bundle = Bundle(for: CoreDataFeedStore.self)
         
