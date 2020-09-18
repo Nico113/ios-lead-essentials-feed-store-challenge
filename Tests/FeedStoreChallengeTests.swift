@@ -104,6 +104,18 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
     //  ***********************
 
     override func setUp() {
+        super.setUp()
+        
+        let sut = makeSUT()
+        
+        sut.deleteCachedFeed { (error) in
+            
+        }
+    }
+    
+    override func tearDown() {
+        super.tearDown()
+        
         let sut = makeSUT()
         
         sut.deleteCachedFeed { (error) in
@@ -142,9 +154,9 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
 	}
 
 	func test_insert_deliversNoErrorOnNonEmptyCache() {
-//		let sut = makeSUT()
-//
-//		assertThatInsertDeliversNoErrorOnNonEmptyCache(on: sut)
+		let sut = makeSUT()
+
+		assertThatInsertDeliversNoErrorOnNonEmptyCache(on: sut)
 	}
 
 	func test_insert_overridesPreviouslyInsertedCacheValues() {
