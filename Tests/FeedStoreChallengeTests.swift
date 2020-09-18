@@ -25,16 +25,26 @@ class CoreDataFeedStore: FeedStore {
         return nil
     }()
     
+    func deleteCurrentCache() throws {
+        if let container = persistentContainer, let currentCache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
+            container.viewContext.delete(currentCache)
+            try container.viewContext.save()
+        }
+    }
+    
     func deleteCachedFeed(completion: @escaping DeletionCompletion) {
         if let container = persistentContainer {
-            do {
-                if let cache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
-                    container.viewContext.delete(cache)
+            let entities = container.managedObjectModel.entities
+            entities.compactMap({ $0.name }).forEach { entity in
+                let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: entity)
+                let deleteRequest = NSBatchDeleteRequest(fetchRequest: deleteFetch)
+                do {
+                    try container.viewContext.execute(deleteRequest)
                     try container.viewContext.save()
                     completion(.none)
+                } catch {
+                    completion(error)
                 }
-            } catch {
-                completion(error)
             }
         } else {
             completion(NSError())
@@ -44,6 +54,8 @@ class CoreDataFeedStore: FeedStore {
     func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
         if let container = persistentContainer, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: container.viewContext) {
             do {
+                try deleteCurrentCache()
+                
                 let cache = Cache(context: container.viewContext)
                 
                 var feedImages = [NSManagedObject]()
@@ -63,7 +75,6 @@ class CoreDataFeedStore: FeedStore {
                 
                 try container.viewContext.save()
                 completion(.none)
-                
             } catch {
                 completion(error)
             }
@@ -152,9 +163,9 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
 	}
 
 	func test_insert_overridesPreviouslyInsertedCacheValues() {
-//		let sut = makeSUT()
-//
-//		assertThatInsertOverridesPreviouslyInsertedCacheValues(on: sut)
+		let sut = makeSUT()
+
+		assertThatInsertOverridesPreviouslyInsertedCacheValues(on: sut)
 	}
 
 	func test_delete_deliversNoErrorOnEmptyCache() {
