@@ -98,12 +98,6 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
         clearCache()
     }
     
-    override func tearDown() {
-        super.tearDown()
-        
-        clearCache()
-    }
-    
 	func test_retrieve_deliversEmptyOnEmptyCache() {
 		let sut = makeSUT()
         
@@ -180,13 +174,15 @@ class FeedStoreChallengeTests: XCTestCase, FeedStoreSpecs {
 	
 	private func makeSUT() -> FeedStore {
         let sut = CoreDataFeedStore()
-        
-        var weakSut: FeedStore? = sut
-        weakSut = nil
-        XCTAssertNil(weakSut)
-        
+        trackForMemoryLeak(sut)
         return sut
 	}
+    
+    private func trackForMemoryLeak(_ instance: AnyObject, file: StaticString = #file, line: UInt = #line) {
+        addTeardownBlock { [weak instance] in
+            XCTAssertNil(instance, "Instance should have been deallocated", file: file, line: line)
+        }
+    }
     
     private func clearCache(file: StaticString = #file, line: UInt = #line) {
         let sut = makeSUT()
