@@ -7,12 +7,17 @@ import FeedStoreChallenge
 import CoreData
 
 class CoreDataFeedStore: FeedStore {
+    private let modelName: String
+    private let bundle: Bundle
+    
+    public init(model: String = "FeedStore", bundle: Bundle = Bundle(for: CoreDataFeedStore.self)) {
+        modelName = model
+        self.bundle = bundle
+    }
     
     lazy var persistentContainer: NSPersistentContainer? = {
-        let bundle = Bundle(for: CoreDataFeedStore.self)
-        
         if let mom = NSManagedObjectModel.mergedModel(from: [bundle]) {
-            let container = NSPersistentContainer(name: "FeedStore", managedObjectModel: mom)
+            let container = NSPersistentContainer(name: modelName, managedObjectModel: mom)
                     
             container.loadPersistentStores(completionHandler: { (storeDescription, error) in
                 if let error = error as NSError? {
