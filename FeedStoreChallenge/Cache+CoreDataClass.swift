@@ -9,7 +9,6 @@
 
 import Foundation
 import CoreData
-import FeedStoreChallenge
 
 @objc(Cache)
 public class Cache: NSManagedObject {

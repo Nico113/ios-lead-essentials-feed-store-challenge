@@ -9,7 +9,6 @@
 
 import Foundation
 import CoreData
-import FeedStoreChallenge
 
 @objc(FeedImage)
 public class FeedImage: NSManagedObject {
