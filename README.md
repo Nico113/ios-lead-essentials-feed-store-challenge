@@ -48,7 +48,7 @@ Finally, add to this README file:
 
 ### Comments and remarks you think other developers will find useful.
 
-CoreDataFeedStore as a concrete implementation of <FeedStore> protocol
+CoreDataFeedStore as a concrete implementation of -FeedStore- protocol
 
 ### The Dependency Diagram demonstrating the architecture of your solution. 
 ![ArchitectureDiagram](./images/FeedStore-PersistanceModule.jpg)
