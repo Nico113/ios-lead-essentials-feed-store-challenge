@@ -30,7 +30,7 @@ class FeedStoreIntegrationTests: XCTestCase {
         undoStoreSideEffects()
     }
     
-    func test_retrieve_deliversNoEmptyOnEmptyCache() {
+    func test_retrieve_deliversEmptyOnEmptyCache() {
         let sut = makeSUT()
 
         expect(sut, toRetrieve: .empty)
