@@ -36,14 +36,12 @@ public class CoreDataFeedStore: FeedStore {
             context.perform {
                 do {
                     if let currentCache: Cache = try context.fetch(Cache.fetchRequest()).first {
-                        context.perform { [context] in
-                            context.delete(currentCache)
-                            do {
-                                try context.save()
-                                completion(.none)
-                            } catch {
-                                completion(error)
-                            }
+                        context.delete(currentCache)
+                        do {
+                            try context.save()
+                            completion(.none)
+                        } catch {
+                            completion(error)
                         }
                     } else {
                         completion(.none)
@@ -59,11 +57,27 @@ public class CoreDataFeedStore: FeedStore {
     
     public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
         if let context = context, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: context) {
-            deleteCachedFeed { error in
-                if let error = error {
-                    completion(error)
-                } else {
-                    context.perform {
+            context.perform {
+                do {
+                    if let cache: Cache = try context.fetch(Cache.fetchRequest()).first {
+                        var feedImages = [NSManagedObject]()
+                        for localFeedImage in feed {
+                            let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: context)
+                            
+                            feedImage.setValue(localFeedImage.id, forKey: "id")
+                            feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
+                            feedImage.setValue(localFeedImage.location, forKey: "location")
+                            feedImage.setValue(localFeedImage.url, forKey: "url")
+                            
+                            feedImages.append(feedImage)
+                        }
+                        
+                        cache.timestamp = timestamp
+                        cache.setValue(NSOrderedSet(array: feedImages), forKey: "items")
+                        
+                        try context.save()
+                        completion(.none)
+                    } else {
                         let cache = Cache(context: context)
                         
                         var feedImages = [NSManagedObject]()
@@ -81,13 +95,11 @@ public class CoreDataFeedStore: FeedStore {
                         cache.timestamp = timestamp
                         cache.addToItems(NSOrderedSet(array: feedImages))
                         
-                        do {
-                            try context.save()
-                            completion(.none)
-                        } catch {
-                            completion(error)
-                        }
+                        try context.save()
+                        completion(.none)
                     }
+                } catch {
+                    completion(error)
                 }
             }
         } else {
