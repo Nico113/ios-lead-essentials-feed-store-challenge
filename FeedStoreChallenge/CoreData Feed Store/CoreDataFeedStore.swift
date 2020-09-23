@@ -10,71 +10,85 @@ import Foundation
 import CoreData
 
 public class CoreDataFeedStore: FeedStore {
-    private let modelName: String
-    private let bundle: Bundle
+    private let container: NSPersistentContainer?
+    private let context: NSManagedObjectContext?
     
-    public init(model: String = "FeedStore", bundle: Bundle = Bundle(for: CoreDataFeedStore.self)) {
-        modelName = model
-        self.bundle = bundle
-    }
-    
-    lazy var persistentContainer: NSPersistentContainer? = {
-        if let mom = NSManagedObjectModel.mergedModel(from: [bundle]) {
-            let container = NSPersistentContainer(name: modelName, managedObjectModel: mom)
-                    
-            container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-                if let error = error as NSError? {
-                    fatalError("Unresolved error \(error), \(error.userInfo)")
-                }
-            })
-            
-            return container
+    public init(model: String = "FeedStore", bundle: Bundle = Bundle(for: CoreDataFeedStore.self)) throws {
+        guard let mom = NSManagedObjectModel.mergedModel(from: [bundle]) else {
+            container = nil
+            context = nil
+            return
         }
-        return nil
-    }()
-    
-    func deleteCurrentCache() throws {
-        if let container = persistentContainer, let currentCache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
-            container.viewContext.delete(currentCache)
-            try container.viewContext.save()
+        
+        container = NSPersistentContainer(name: model, managedObjectModel: mom)
+        var receivedError: Error?
+        container?.loadPersistentStores(completionHandler: { (storeDescription, error) in
+            receivedError = error
+        })
+        if let error = receivedError {
+            throw error
         }
+        context = container?.newBackgroundContext()
     }
     
     public func deleteCachedFeed(completion: @escaping DeletionCompletion) {
-        do {
-            try deleteCurrentCache()
+        if let context = context {
+            context.perform {
+                do {
+                    if let currentCache: Cache = try context.fetch(Cache.fetchRequest()).first {
+                        context.perform { [context] in
+                            context.delete(currentCache)
+                            do {
+                                try context.save()
+                                completion(.none)
+                            } catch {
+                                completion(error)
+                            }
+                        }
+                    } else {
+                        completion(.none)
+                    }
+                } catch {
+                    completion(error)
+                }
+            }
+        } else {
             completion(.none)
-        } catch {
-            completion(error)
         }
     }
     
     public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
-        if let container = persistentContainer, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: container.viewContext) {
-            do {
-                try deleteCurrentCache()
-                
-                let cache = Cache(context: container.viewContext)
-                
-                var feedImages = [NSManagedObject]()
-                for localFeedImage in feed {
-                    let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: container.viewContext)
-                    
-                    feedImage.setValue(localFeedImage.id, forKey: "id")
-                    feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
-                    feedImage.setValue(localFeedImage.location, forKey: "location")
-                    feedImage.setValue(localFeedImage.url, forKey: "url")
-                    
-                    feedImages.append(feedImage)
+        if let context = context, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: context) {
+            deleteCachedFeed { error in
+                if let error = error {
+                    completion(error)
+                } else {
+                    context.perform {
+                        let cache = Cache(context: context)
+                        
+                        var feedImages = [NSManagedObject]()
+                        for localFeedImage in feed {
+                            let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: context)
+                            
+                            feedImage.setValue(localFeedImage.id, forKey: "id")
+                            feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
+                            feedImage.setValue(localFeedImage.location, forKey: "location")
+                            feedImage.setValue(localFeedImage.url, forKey: "url")
+                            
+                            feedImages.append(feedImage)
+                        }
+                        
+                        cache.timestamp = timestamp
+                        cache.addToItems(NSOrderedSet(array: feedImages))
+                        
+                        do {
+                            try context.save()
+                            completion(.none)
+                        } catch {
+                            completion(error)
+                        }
+                    }
                 }
-                
-                cache.timestamp = timestamp
-                cache.addToItems(NSOrderedSet(array: feedImages))
-                
-                try container.viewContext.save()
-                completion(.none)
-            } catch {
-                completion(error)
             }
         } else {
             completion(NSError())
@@ -82,18 +96,20 @@ public class CoreDataFeedStore: FeedStore {
     }
     
     public func retrieve(completion: @escaping RetrievalCompletion) {
-        if let container = persistentContainer {
-            do {
-                if let cache: Cache = try container.viewContext.fetch(Cache.fetchRequest()).first {
-                    completion(.found(feed: cache.local, timestamp: cache.timestamp!))
-                } else {
-                    completion(.empty)
+        if let context = context {
+            context.perform {
+                do {
+                    if let cache: Cache = try context.fetch(Cache.fetchRequest()).first {
+                        completion(.found(feed: cache.local, timestamp: cache.timestamp))
+                    } else {
+                        completion(.empty)
+                    }
+                } catch {
+                    completion(.failure(error))
                 }
-            } catch {
-                completion(.failure(error))
             }
         } else {
-            completion(.failure(NSError()))
+            completion(.empty)
         }
     }
 }

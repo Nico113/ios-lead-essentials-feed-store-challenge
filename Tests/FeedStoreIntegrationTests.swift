@@ -46,7 +46,7 @@ class FeedStoreIntegrationTests: XCTestCase {
 
         expect(storeToLoad, toRetrieve: .found(feed: feed, timestamp: timestamp))
     }
-    
+
     func test_insert_overridesFeedInsertedOnAnotherInstance() {
         let storeToInsert = makeSUT()
         let storeToOverride = makeSUT()
@@ -60,7 +60,7 @@ class FeedStoreIntegrationTests: XCTestCase {
 
         expect(storeToLoad, toRetrieve: .found(feed: latestFeed, timestamp: latestTimestamp))
     }
-    
+
     func test_delete_deletesFeedInsertedOnAnotherInstance() {
         let storeToInsert = makeSUT()
         let storeToDelete = makeSUT()
@@ -76,7 +76,7 @@ class FeedStoreIntegrationTests: XCTestCase {
     // - MARK: Helpers
     
     private func makeSUT() -> FeedStore {
-        let sut = CoreDataFeedStore()
+        let sut = try! CoreDataFeedStore()
         return sut
     }
     
@@ -91,11 +91,7 @@ class FeedStoreIntegrationTests: XCTestCase {
     private func clearCache(file: StaticString = #file, line: UInt = #line) {
         let sut = makeSUT()
         
-        sut.deleteCachedFeed { (error) in
-            if let error = error {
-                fatalError("Unresolved error \(error)")
-            }
-        }
+        deleteCache(from: sut)
     }
     
 }
