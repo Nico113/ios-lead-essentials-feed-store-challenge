@@ -56,18 +56,18 @@ public class CoreDataFeedStore: FeedStore {
     }
     
     public func insert(_ feed: [LocalFeedImage], timestamp: Date, completion: @escaping InsertionCompletion) {
-        if let context = context, let feedImageEntity = NSEntityDescription.entity(forEntityName: "FeedImage", in: context) {
+        if let context = context {
             context.perform {
                 do {
                     if let cache: Cache = try context.fetch(Cache.fetchRequest()).first {
                         var feedImages = [NSManagedObject]()
                         for localFeedImage in feed {
-                            let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: context)
+                            let feedImage = FeedImage(context: context)
                             
-                            feedImage.setValue(localFeedImage.id, forKey: "id")
-                            feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
-                            feedImage.setValue(localFeedImage.location, forKey: "location")
-                            feedImage.setValue(localFeedImage.url, forKey: "url")
+                            feedImage.id = localFeedImage.id
+                            feedImage.imageDescription = localFeedImage.description
+                            feedImage.location = localFeedImage.location
+                            feedImage.url = localFeedImage.url
                             
                             feedImages.append(feedImage)
                         }
@@ -82,18 +82,18 @@ public class CoreDataFeedStore: FeedStore {
                         
                         var feedImages = [NSManagedObject]()
                         for localFeedImage in feed {
-                            let feedImage = NSManagedObject(entity: feedImageEntity, insertInto: context)
+                            let feedImage = FeedImage(context: context)
                             
-                            feedImage.setValue(localFeedImage.id, forKey: "id")
-                            feedImage.setValue(localFeedImage.description, forKey: "imageDescription")
-                            feedImage.setValue(localFeedImage.location, forKey: "location")
-                            feedImage.setValue(localFeedImage.url, forKey: "url")
+                            feedImage.id = localFeedImage.id
+                            feedImage.imageDescription = localFeedImage.description
+                            feedImage.location = localFeedImage.location
+                            feedImage.url = localFeedImage.url
                             
                             feedImages.append(feedImage)
                         }
                         
                         cache.timestamp = timestamp
-                        cache.addToItems(NSOrderedSet(array: feedImages))
+                        cache.items = NSOrderedSet(array: feedImages)
                         
                         try context.save()
                         completion(.none)
