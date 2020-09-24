@@ -59,45 +59,30 @@ public class CoreDataFeedStore: FeedStore {
         if let context = context {
             context.perform {
                 do {
-                    if let cache: Cache = try context.fetch(Cache.fetchRequest()).first {
-                        var feedImages = [NSManagedObject]()
-                        for localFeedImage in feed {
-                            let feedImage = FeedImage(context: context)
-                            
-                            feedImage.id = localFeedImage.id
-                            feedImage.imageDescription = localFeedImage.description
-                            feedImage.location = localFeedImage.location
-                            feedImage.url = localFeedImage.url
-                            
-                            feedImages.append(feedImage)
-                        }
-                        
-                        cache.timestamp = timestamp
-                        cache.setValue(NSOrderedSet(array: feedImages), forKey: "items")
-                        
-                        try context.save()
-                        completion(.none)
+                    var cache: Cache
+                    if let currentCache: Cache = try context.fetch(Cache.fetchRequest()).first {
+                        cache = currentCache
                     } else {
-                        let cache = Cache(context: context)
-                        
-                        var feedImages = [NSManagedObject]()
-                        for localFeedImage in feed {
-                            let feedImage = FeedImage(context: context)
-                            
-                            feedImage.id = localFeedImage.id
-                            feedImage.imageDescription = localFeedImage.description
-                            feedImage.location = localFeedImage.location
-                            feedImage.url = localFeedImage.url
-                            
-                            feedImages.append(feedImage)
-                        }
-                        
-                        cache.timestamp = timestamp
-                        cache.items = NSOrderedSet(array: feedImages)
-                        
-                        try context.save()
-                        completion(.none)
+                        cache = Cache(context: context)
                     }
+                    
+                    var feedImages = [NSManagedObject]()
+                    for localFeedImage in feed {
+                        let feedImage = FeedImage(context: context)
+                        
+                        feedImage.id = localFeedImage.id
+                        feedImage.imageDescription = localFeedImage.description
+                        feedImage.location = localFeedImage.location
+                        feedImage.url = localFeedImage.url
+                        
+                        feedImages.append(feedImage)
+                    }
+                    
+                    cache.timestamp = timestamp
+                    cache.items = NSOrderedSet(array: feedImages)
+                    
+                    try context.save()
+                    completion(.none)
                 } catch {
                     completion(error)
                 }
